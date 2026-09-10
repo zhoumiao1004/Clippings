@@ -7,7 +7,7 @@
 
 Context接口只有四个方法，每个方法都对应一类并发控制需求：
 
-```
+```go
 // src/context/context.go (Go 1.22+)
 type Context interface {
     Deadline() (deadline time.Time, ok bool)
@@ -52,7 +52,7 @@ Background()和TODO()返回emptyCtx的包装。四个方法全部返回零值：
 
 这是整个context包最重要的结构体：
 
-```
+```go
 // src/context/context.go
 type cancelCtx struct {
     Context                          // 嵌入父context，形成链表/树
