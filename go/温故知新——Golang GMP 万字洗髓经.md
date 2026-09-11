@@ -1,4 +1,3 @@
-
 ## 0 前言
 
 我在 23 年初曾发布过一篇——golang [gmp](https://zhida.zhihu.com/search?content_id=248981159&content_type=Article&match_order=1&q=gmp&zhida_source=entity) 原理解析，当时刚开始接触 go 底层源码，视野广度和理解深度都有所不足，对一些核心环节的思考和挖掘有所欠缺，对其中某些局部细节又过分拘泥，整体内容质量上还是有所不足.
