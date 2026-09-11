@@ -1,4 +1,3 @@
-
 VictoriaMetrics监控组件（以下简称VM）号称比Prometheus快了至少3倍，内存占用比Prometheus小了7倍。
 
 为什么能快这么多呢？下面是阅读vm-storage源码后的心得：
@@ -42,7 +41,7 @@ vm-storage提供了机制让查询协程主动让出，在写入队列满的时�
 
 ## 特定的成员有特定的锁
 
-```
+```go
 // Table represents mergeset table.  // 索引部分的table对象
 type Table struct {
 ​
@@ -59,7 +58,7 @@ type Table struct {
 
 see: [VictoriaMetrics-1.72.0-cluster/lib/mergeset/table.go#L128](https://link.zhihu.com/?target=https%3A//github.com/ahfuzhang/victoria-metrics-1.72.0/blob/63987bc868a6983bc94192ed24136590016575c8/VictoriaMetrics-1.72.0-cluster/lib/mergeset/table.go%23L128)
 
-```
+```go
 type rawItemsShards struct {
     shardIdx uint32  // 通过原子加来确定分桶，保障各个核操作不同的桶，减少竞争
 ​
@@ -80,7 +79,7 @@ func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) error {  // item
 
 ## 拷贝出来再处理，减少加锁的时间
 
-```
+```go
 // getParts appends parts snapshot to dst and returns it.
 //
 // The appended parts must be released with putParts.
@@ -100,7 +99,7 @@ func (tb *Table) getParts(dst []*partWrapper) []*partWrapper {  // 复制table �
 
 ## 引用计数机制，解决并发中可能带来的对象新增和删除问题
 
-```
+```go
 func (pw *partWrapper) incRef() {
     atomic.AddUint64(&pw.refCount, 1)
 }
@@ -130,8 +129,7 @@ func (pw *partWrapper) decRef() {
 当记录为0时，把对象放入sync.Pool对象池。
 
 ## 使用sync.Value来处理并发期间可能切换的成员
-
-```
+```go
 // Storage represents TSDB storage.
 type Storage struct {
 ​
@@ -180,7 +178,7 @@ fast path代表了绝大多数time series的处理路径，对内存的优化主
 
 下面这个函数的实现，可见一斑： [VictoriaMetrics-1.72.0-cluster/lib/mergeset/encoding.go#L30](https://link.zhihu.com/?target=https%3A//github.com/ahfuzhang/victoria-metrics-1.72.0/blob/63987bc868a6983bc94192ed24136590016575c8/VictoriaMetrics-1.72.0-cluster/lib/mergeset/encoding.go%23L30)
 
-```
+```go
 // Bytes returns bytes representation of it obtained from data.
 //
 // The returned bytes representation belongs to data.
@@ -204,7 +202,7 @@ func (it Item) Bytes(data []byte) []byte {  // 参数 data 其实没有必要。
 
 VM中有大量类似下方的写法：
 
-```
+```go
 type inmemoryPart struct {
     ph partHeader
     sb storageBlock
@@ -232,7 +230,7 @@ type inmemoryPart struct {
 
 如果担心某些中型对象太耗内存，VM中还使用了channel来保存对象，限制了总的对象个数。这里同样也是大型对象的处理策略。
 
-```
+```go
 var mpPool = make(chan *inmemoryPart, cgroup.AvailableCPUs())
 ​
 func getInmemoryPart() *inmemoryPart {
@@ -258,7 +256,7 @@ func putInmemoryPart(mp *inmemoryPart) {
 
 VM代码中的几乎所有数组都只分配不释放，对象使用完成后放回sync.Pool，以备下次重复使用。
 
-```
+```go
 func (o *Obj)foo(){
     o.buf = o.buf[:0]  //把临时数组作为对象的成员。使用前清空
     o.buf = o.bar(o.buf)  //函数调用中，通常把目的数组传入进去

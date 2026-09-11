@@ -6,7 +6,7 @@ Golang为了支持读多写少的场景，提供了sync.Map并发原语，由普
 
 讨论设计原理前，先观察下sync.Map的结构定义，主要三种元素组成：map、mutex、atomic
 
-```
+```go
 type Map struct {
     mu Mutex
     read atomic.Value // readOnly

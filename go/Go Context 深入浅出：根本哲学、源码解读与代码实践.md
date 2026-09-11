@@ -68,7 +68,7 @@ func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Conte
 
 当然，由于键的 类 型为 `any` ，使用时需要类型断言。为避免频繁类型断言带来的问题，推荐设计类型安全的访问器（type-safe accessor）。例如说，与其写 `ctx.Value(userKey).(*User)` ，那不如封装一下：
 
-```
+```go
 type User struct {...}
 type key int // 包内定义
 var userKey key // 非导出，首字母小写
@@ -83,21 +83,19 @@ func LoadFromContext(ctx context.Context) (*User, bool) {
 
 查看源码，上述推导和思考简直和 Go 1.7标准库 中 Context 接口设计不谋而合，体现了Go语言一贯坚持的实用与简约哲学 **（bushi）** ：
 
-```
+```go
 type Context interface {
     Deadline() (deadline time.Time, ok bool)
     Done() <-chan struct{}
     Err() error
     Value(key any) any
 }
-
 ```
-
 ### 接口实现：基础上下文
 
 Go 不支持传统面向对象语言的继承机制，但通过组合（嵌入）可以实现类似的结构复用。我们先从最基础的上下文类型实现起：
 
-```
+```go
 type emptyCtx struct{}
 
 func (emptyCtx) Deadline() (deadline time.Time, ok bool) {
@@ -121,7 +119,6 @@ type backgroundCtx struct{ emptyCtx }
 func (backgroundCtx) String() string {
     return "context.Background"
 }
-
 ```
 
 这两个是上下文树的“根”，不可被取消、不携带值、无超时机制。 `emptyCtx` 提供默认空实现。 `backgroundCtx` 通过嵌入复用其行为，仅实现自定义输出。
@@ -138,7 +135,7 @@ func (backgroundCtx) String() string {
 
 先从 `valueCtx` 开始。我们要解决的核心问题是：上下文如何 存储 数据？一种自然的想法是用一个哈希表来存储多个 key-value 对。但这样做有点过度了 —— 上下文设计的初衷是 **传递少量、只读的元信息** ，比如 userID、traceID，不是用来做数据容器。而且， `val` 可以是任意类型，包括结构体。因此，包装一个额外的 `key-value` 对就足矣：
 
-```
+```go
 type valueCtx struct {
     Context
     key, val any
@@ -151,7 +148,7 @@ type valueCtx struct {
 
 接下来实现 `WithValue()` 方法，它的作用是：在原有上下文基础上，附加（包装）一个新的键值对，返回一个新的上下文。 **有没有一点像装饰器模式。**
 
-```
+```go
 func WithValue(parent Context, key, val any) Context {
     // 不允许 nil 上下文或键
     if parent == nil {
@@ -167,7 +164,6 @@ func WithValue(parent Context, key, val any) Context {
     // 返回值仍是 Context 接口，保证链式封装
     return &valueCtx{parent, key, val}
 }
-
 ```
 
 > 这里返回的是 &valueCtx{…} ，为什么是指针？上下文本身是链式结构，而且传递开销低，且传递后，接收指针的函数 / 方法体中依然可以修改指针指向的内存单元的值。
@@ -176,7 +172,7 @@ func WithValue(parent Context, key, val any) Context {
 
 由于一个 `valueCtx` 只存储一个 key-value 对，若要支持跨多层上下文的值传递，就必须能够 **沿着上下文链向父节点查找** 。因此，我们实现 `Value()` 方法时，需要检查当前节点是否匹配，如果不匹配则递归查找父节点。
 
-```
+```go
 func (c *valueCtx) Value(key any) any {
     if c.key == key {
         return c.val
@@ -184,7 +180,6 @@ func (c *valueCtx) Value(key any) any {
     // 找不到就找父亲
     return value(c.Context, key)
 }
-
 ```
 
 调用一个封装的私有函数 `value()` ，它负责沿上下文链逐层查找：

@@ -4,7 +4,7 @@
 > 
 > 今天，我们将跳出枯燥的文档，从一个读者的视角，像讲故事一样，带你彻底搞懂 MySQL 的三大核心日志： **Undo Log、Redo Log 和 Binlog** 。它们分别解决了什么问题？底层原理是什么？又是如何完美串联在一起的？
 
-![[Pasted image 20260624143103.png]]
+![[assets/深入理解 MySQL 三大日志：Undo Log、Redo Log 与 Binlog 的协同之道/file-20260911102323477.png]]
 ### 一、Undo Log：事务回滚与 MVCC 的底座
 
 #### 1\. 为什么需要 Undo Log？
